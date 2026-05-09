@@ -514,16 +514,76 @@ function buildCharts() {
     options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7d8590'},grid:{color:'#2a3441'}},y:{ticks:{color:'#7d8590',stepSize:1},grid:{color:'#2a3441'}}}}
   });
 
-  // 3. Buts par match
+  // 3. Buts par match — axe par jour
   destroyChart('buts');
   const sorted=[...matches].sort((a,b)=>a.date.localeCompare(b.date));
+  // Construire la plage de dates complète (du premier au dernier match)
+  const firstDate = new Date(sorted[0].date);
+  const lastDate  = new Date(sorted[sorted.length-1].date);
+  // Map date → buts pour lookup rapide (plusieurs matchs le même jour → on cumule)
+  const butsParJour = {};
+  const labelsParJour = {};
+  sorted.forEach(m => {
+    if (!butsParJour[m.date]) { butsParJour[m.date] = 0; labelsParJour[m.date] = []; }
+    butsParJour[m.date] += m.score_dom + m.score_ext;
+    labelsParJour[m.date].push(`${m.equipe_dom} vs ${m.equipe_ext}`);
+  });
+  // Générer tous les jours entre firstDate et lastDate
+  const allDays = [], allButs = [], allTooltips = [];
+  for (let d = new Date(firstDate); d <= lastDate; d.setDate(d.getDate()+1)) {
+    const key = d.toISOString().slice(0,10);
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const yy = String(d.getFullYear()).slice(2);
+    allDays.push(`${dd}/${mm}/${yy}`);
+    allButs.push(butsParJour[key] ?? null);
+    allTooltips.push(labelsParJour[key] ? labelsParJour[key].join(', ') : null);
+  }
   charts['buts']=new Chart(document.getElementById('chart-buts'),{
     type:'line',
     data:{
-      labels:sorted.map(m=>{const d=new Date(m.date);return `${d.getDate()}/${d.getMonth()+1} ${m.equipe_dom} vs ${m.equipe_ext}`;}),
-      datasets:[{label:'Buts totaux',data:sorted.map(m=>m.score_dom+m.score_ext),borderColor:'#39d353',backgroundColor:'rgba(57,211,83,.1)',tension:.4,fill:true,pointBackgroundColor:'#39d353',pointRadius:4}]
+      labels: allDays,
+      datasets:[{
+        label:'Buts',
+        data: allButs,
+        borderColor:'#39d353',
+        backgroundColor:'rgba(57,211,83,.1)',
+        tension:.4, fill:true,
+        pointBackgroundColor: allButs.map(v=>v!==null?'#39d353':'transparent'),
+        pointRadius: allButs.map(v=>v!==null?5:0),
+        spanGaps: false,
+      }]
     },
-    options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7d8590',maxRotation:45},grid:{display:false}},y:{ticks:{color:'#7d8590',stepSize:1},grid:{color:'#2a3441'}}}}
+    options:{
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            title: ctx => {
+              const i = ctx[0].dataIndex;
+              return allTooltips[i] ? `${allDays[i]} — ${allTooltips[i]}` : allDays[i];
+            },
+            label: ctx => ctx.raw !== null ? `${ctx.raw} but${ctx.raw>1?'s':''}` : ''
+          }
+        }
+      },
+      scales:{
+        x:{
+          ticks:{
+            color:'#7d8590',
+            maxRotation:45,
+            autoSkip:true,
+            maxTicksLimit:20,
+            callback: function(val, i) {
+              // N'affiche le label que si ce jour a un match
+              return allButs[i] !== null ? allDays[i] : '';
+            }
+          },
+          grid:{color:'#2a3441'}
+        },
+        y:{ticks:{color:'#7d8590',stepSize:1},grid:{color:'#2a3441'}}
+      }
+    }
   });
 
   // 4. Lieu
