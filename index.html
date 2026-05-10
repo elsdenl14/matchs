@@ -316,7 +316,14 @@
 // ══ CONFIG ══
 const SUPABASE_URL  = 'https://yfarnkceubcfjpixuxyf.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmYXJua2NldWJjZmpwaXh1eHlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNjA5NTksImV4cCI6MjA5MzczNjk1OX0.lQ7QHH95esfomAIiTtTXQ8jeMUTzrTvoxKCEwtzbM0k';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: {
+    persistSession: true,
+    storageKey: 'matchtracker-session',
+    storage: window.localStorage,
+    autoRefreshToken: true,
+  }
+});
 
 // ══ STATE ══
 let matches = [], currentUser = null, sortCol = 'date', sortDir = -1, charts = {};
